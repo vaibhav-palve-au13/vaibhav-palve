@@ -1,0 +1,53 @@
+clc
+A=randi(20000,300,300,3);%random image
+window=15;
+%strategy 1:
+tic
+GetSingleLayerMax=@(A,window) nlfilter(A,[window window],@(x) max(x(:)));
+maxIM=GetSingleLayerMax(A(:,:,1),window);
+for n=2:size(A,3)
+    tmp=cat(3,maxIM,GetSingleLayerMax(A(:,:,n),window));
+    maxIM = max(tmp,[],3);
+end
+toc
+%strategy 1b:
+tic
+GetSingleLayerMax2=@(A,window) colfilt(A,[window window],'sliding',@max);
+maxIM_1b=GetSingleLayerMax2(A(:,:,1),window);
+for n=2:size(A,3)
+    tmp=cat(3,maxIM_1b,GetSingleLayerMax2(A(:,:,n),window));
+    maxIM_1b = max(tmp,[],3);
+end
+toc
+%strategy 2:
+tic
+maxIM2=zeros(size(A,1),size(A,2));
+tmp=(1:window);tmp=tmp-mean(tmp);
+tmp=ceil(tmp);%in case of even window size
+[w_x,w_y,w_z]=meshgrid(tmp,tmp,1:size(A,3));
+w=[w_x(:) w_y(:) w_z(:)];
+for r=1:size(A,1)
+    for c=1:size(A,2)
+        %get all indices
+        tmp=w;
+        tmp(:,1)=w(:,1)+r;
+        tmp(:,2)=w(:,2)+c;
+        
+        %remove invalid indices
+        tmp(any(tmp<1,2),:)=[];
+        tmp(tmp(:,1)>size(A,1),:)=[];
+        tmp(tmp(:,2)>size(A,2),:)=[];
+        
+        %convert to linear indices
+        ind=sub2ind(size(A),tmp(:,1),tmp(:,2),tmp(:,3));
+        
+        %compute the max
+        maxIM2(r,c)=max(A(ind));
+    end
+end
+toc
+if isequal(maxIM,maxIM2) && isequal(maxIM_1b,maxIM2)
+    disp('everything finished succesfully')
+else
+    disp('something went wrong (check for float rounding errors)')
+end
